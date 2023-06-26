@@ -2,6 +2,7 @@ package com.zic.springboot.demo.zicCoolApp.services;
 
 import com.zic.springboot.demo.zicCoolApp.services.response.DailyQuote;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -14,8 +15,12 @@ import java.util.concurrent.TimeUnit;
 public class ExternalAPIService {
     private RestTemplate restTemplate;
     private RedisService redisService;
+
+    //Recommend to use constructor injection, because field injection is hard for unit test.
+    //Qualifier has the same name as the class we want to inject, except the first letter is
+    //lower case.
     @Autowired
-    public ExternalAPIService(RestTemplate restTemplate, RedisService redisService) {
+    public ExternalAPIService(@Qualifier("restTemplate") RestTemplate restTemplate, RedisService redisService) {
         this.restTemplate = restTemplate;
         this.redisService = redisService;
     }
@@ -27,6 +32,7 @@ public class ExternalAPIService {
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("MMMM:dd:yyyy");
         String formattedDate = currentDate.format(formatter);
         dailyQuote += formattedDate;
+        //ToDo: Surround it with try/catch to prevent the timeout of Redis socket
         String quoteString = (String)redisService.getValue(dailyQuote);
         if (quoteString != null) {
             return quoteString;
@@ -43,7 +49,7 @@ public class ExternalAPIService {
         ResponseEntity<DailyQuote[]> response = restTemplate.getForEntity(url, DailyQuote[].class);
         if (response.getStatusCode().is2xxSuccessful()) {
             DailyQuote[] dailyQuotes = response.getBody();
-            return dailyQuotes[0].getQ() + "  ---" + dailyQuotes[0].getA();
+            return dailyQuotes[0].getQ() + "\n---" + dailyQuotes[0].getA();
         } else {
             // Handle error response
             return null;
