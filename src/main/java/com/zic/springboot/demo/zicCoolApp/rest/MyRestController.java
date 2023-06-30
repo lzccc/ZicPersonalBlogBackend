@@ -3,10 +3,8 @@ package com.zic.springboot.demo.zicCoolApp.rest;
 import com.zic.springboot.demo.zicCoolApp.services.RedisService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.FileSystemResource;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.*;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -59,14 +57,53 @@ public class MyRestController {
     }
 
     //http://localhost:8080/bloglist?listid=listTest
+    //ToDO:Add another parameter that control how many blog we want to get.
     @GetMapping("/bloglist")
     public List<Map<String, Object>> getBlogList(@RequestParam("listid") String listId) {
-        List<Object> value = redisService.getList(listId);
+        List<Object> value = redisService.getAllFromZSet(listId);
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object key : value) {
+            System.out.println((String)key);
             Map<String, Object> hash = redisService.getHash((String)key);
             result.add(hash);
         }
         return result;
+    }
+
+    @GetMapping("/mdfile")
+    public ResponseEntity<String> getMDFileContent(@RequestParam("mdfileid") String mdfileid) {
+        try {
+            String mdContent = (String) redisService.getValue("blogContent:" +  mdfileid);
+            return ResponseEntity.ok().body(mdContent);
+        } catch (Exception exc) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal Error!");
+//            throw new ResponseStatusException(
+//                    HttpStatus.INTERNAL_SERVER_ERROR, "Internal Error!");
+        }
+    }
+
+    @PostMapping("/mdfile/save/{mdfileid}")
+    public ResponseEntity<Void> saveContent(@PathVariable String mdfileid, @RequestBody Map<String, String> request) {
+        try {
+            String content = request.get("content");
+            redisService.setValue("blogContent:" + mdfileid, content);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            System.out.println(e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/mdfile/createblog/{userid}")
+    public ResponseEntity<String> createBlog(@PathVariable String userid, @RequestBody Map<String, Object> request) {
+        try {
+            //First create the blogID
+            String blogID = redisService.createUserKey( userid, request);
+
+            return ResponseEntity.ok().body(blogID);
+        } catch (Exception e) {
+            System.out.println(e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
     }
 }

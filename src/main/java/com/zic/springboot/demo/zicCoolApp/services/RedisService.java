@@ -2,13 +2,12 @@ package com.zic.springboot.demo.zicCoolApp.services;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
-import org.springframework.data.redis.core.HashOperations;
-import org.springframework.data.redis.core.ListOperations;
-import org.springframework.data.redis.core.RedisTemplate;
+import org.springframework.dao.DataAccessException;
+import org.springframework.data.redis.core.*;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-import java.util.Map;
+import java.text.SimpleDateFormat;
+import java.util.*;
 import java.util.concurrent.TimeUnit;
 
 //The Lazy is just tell Spring that don't initialize bean if it is not required.
@@ -51,12 +50,55 @@ public class RedisService {
         }
     }
 
+    public void pushToList(String listKey, String newKey) {
+        ListOperations<String, Object> listOperations = redisTemplate.opsForList();
+        if (hasKey(newKey)) {
+            listOperations.leftPush(listKey, newKey);
+        }
+    }
+
     public List<Object> getList(String key) {
         ListOperations<String, Object> listOperations = redisTemplate.opsForList();
         return listOperations.range(key, 0, -1);
     }
 
+    public List<Object> getAllFromZSet(String key) {
+        return new ArrayList<>(redisTemplate.opsForZSet().range(key, 0, -1));
+    }
+
     public boolean hasKey(String key) {
         return redisTemplate.hasKey(key);
+    }
+
+    public String createUserKey(String userId, Map<String, Object> request) {
+        String prefix = "blog:" + userId;
+        return redisTemplate.execute(new SessionCallback<String>() {
+            public String execute(RedisOperations operations) throws DataAccessException {
+                String keyPattern = prefix + ":*";
+                operations.watch(keyPattern); // Watch for changes
+                operations.multi(); // Begin transaction
+                // Add new key
+                UUID uuid = UUID.randomUUID();
+                String newKey = prefix + ":" + uuid;
+                request.put("blogId", newKey);
+                Date currDate = new Date();
+                SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+                // Format the date
+                String dateString = formatter.format(currDate);
+                request.put("date", dateString);
+                //Set blog metadata
+                operations.opsForHash().putAll(newKey, request);
+                //Add this blogID to the blog zset of this user
+                operations.opsForZSet().add("blogSet:" + userId, newKey, currDate.getTime());
+                //create the actual content key for this blog
+                operations.opsForValue().set("blogContent:" + newKey, "zictestvalue");
+                // If EXEC returns null, a watched key has been modified and operation should be retried
+                List<Object> results = operations.exec();
+                if (results == null) {
+                    return createUserKey(userId, request);
+                }
+                return newKey;
+            }
+        });
     }
 }

@@ -20,6 +20,7 @@ public class RedisConfig {
     @Value("${spring.redis.password}")
     private String redisPassword;
 
+    //The use case of @Bean: make a third-party class available to Spring
     @Bean
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(redisHost, redisPort);

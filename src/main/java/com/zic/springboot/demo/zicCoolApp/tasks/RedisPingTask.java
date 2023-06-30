@@ -1,5 +1,7 @@
 package com.zic.springboot.demo.zicCoolApp.tasks;
 
+import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Primary;
@@ -27,5 +29,16 @@ public class RedisPingTask {
         redisTemplate.getConnectionFactory().getConnection().ping();
         //ToDo:Change this to logging
         System.out.println("Ping sent to Redis");
+    }
+
+    @PostConstruct
+    public void doStartUpStuff() {
+        System.out.println("Do some start up stuff");
+    }
+
+    //Please note that for "prototype" scoped beans, Spring does not call the destroy method!
+    @PreDestroy
+    public void doClenUpStuff() {
+        System.out.println("Clean up stuff");
     }
 }

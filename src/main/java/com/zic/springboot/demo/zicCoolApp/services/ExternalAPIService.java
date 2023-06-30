@@ -45,7 +45,7 @@ public class ExternalAPIService {
         return "Something went wrong...";
     }
 
-    private String  fetchFromExternalAPI(String url) {
+    private String fetchFromExternalAPI(String url) {
         ResponseEntity<DailyQuote[]> response = restTemplate.getForEntity(url, DailyQuote[].class);
         if (response.getStatusCode().is2xxSuccessful()) {
             DailyQuote[] dailyQuotes = response.getBody();
