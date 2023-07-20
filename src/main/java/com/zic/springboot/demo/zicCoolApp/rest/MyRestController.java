@@ -1,6 +1,11 @@
 package com.zic.springboot.demo.zicCoolApp.rest;
 
+import com.squareup.okhttp.Response;
+import com.zic.springboot.demo.zicCoolApp.aspect.RateLimiter;
+import com.zic.springboot.demo.zicCoolApp.services.MailService;
 import com.zic.springboot.demo.zicCoolApp.services.RedisService;
+import com.zic.springboot.demo.zicCoolApp.services.response.MailData;
+import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpStatus;
@@ -11,14 +16,18 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 
 @RestController
-@CrossOrigin("*")
+@CrossOrigin(origins = "*")
 public class MyRestController {
     @Autowired
     private RedisService redisService;
+
+    @Autowired
+    private MailService mailService;
     @GetMapping("/")
     public String sayHello() {
         return "Hello World";
@@ -29,7 +38,7 @@ public class MyRestController {
         return "Test!";
     }
 
-    @GetMapping("/download/cv")
+    @GetMapping("/api/cv")
     public ResponseEntity<Resource> downloadFile() {
         // Load the file as a Resource (e.g., from the file system or database)
         String filePath = "/Users/zichongli/Downloads/ZichongLi_Resume.pdf";
@@ -50,7 +59,7 @@ public class MyRestController {
         return value;
     }
 
-    @GetMapping("/blog")
+    @GetMapping("/api/blog")
     public Map<String, Object> getBlog(@RequestParam("blogid") String blogId) {
         Map<String, Object> value = redisService.getHash(blogId);
         return value;
@@ -58,19 +67,55 @@ public class MyRestController {
 
     //http://localhost:8080/bloglist?listid=listTest
     //ToDO:Add another parameter that control how many blog we want to get.
-    @GetMapping("/bloglist")
+    @GetMapping("/api/bloglist")
     public List<Map<String, Object>> getBlogList(@RequestParam("listid") String listId) {
         List<Object> value = redisService.getAllFromZSet(listId);
         List<Map<String, Object>> result = new ArrayList<>();
         for (Object key : value) {
-            System.out.println((String)key);
             Map<String, Object> hash = redisService.getHash((String)key);
             result.add(hash);
         }
         return result;
     }
 
-    @GetMapping("/mdfile")
+    @GetMapping("/api/comments")
+    public List<Map<String, Object>> getCommentList(@RequestParam("listid") String listId) {
+        List<Object> value = redisService.getAllFromZSet(listId);
+        List<Map<String, Object>> result = new ArrayList<>();
+        for (Object key : value) {
+            Map<String, Object> hash = redisService.getHash((String)key);
+            result.add(hash);
+        }
+        return result;
+    }
+
+    @PostMapping("/api/comment/{userid}")
+    public ResponseEntity<Map<String, Object>> saveComment(@PathVariable String userid, @RequestBody Map<String, Object> request) {
+        try {
+            //First create the blogID
+            String newkey = redisService.createComment(userid, request);
+            Map<String, Object> result = redisService.getHash(newkey);
+            return ResponseEntity.ok().body(result);
+        } catch (Exception e) {
+            System.out.println(e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @CrossOrigin(origins = "*")
+    @DeleteMapping("/api/comment/{commentId}")
+    public ResponseEntity<Void> deleteComment(@PathVariable String commentId) {
+        try {
+            //First create the blogID
+            redisService.deleteComment(commentId);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            System.out.println(e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @GetMapping("/api/mdfile")
     public ResponseEntity<String> getMDFileContent(@RequestParam("mdfileid") String mdfileid) {
         try {
             String mdContent = (String) redisService.getValue("blogContent:" +  mdfileid);
@@ -82,7 +127,7 @@ public class MyRestController {
         }
     }
 
-    @PostMapping("/mdfile/save/{mdfileid}")
+    @PostMapping("/api/mdfile/{mdfileid}")
     public ResponseEntity<Void> saveContent(@PathVariable String mdfileid, @RequestBody Map<String, String> request) {
         try {
             String content = request.get("content");
@@ -94,16 +139,50 @@ public class MyRestController {
         }
     }
 
-    @PostMapping("/mdfile/createblog/{userid}")
+    @DeleteMapping("/api/mdfile/{mdfileid}")
+    public ResponseEntity<Void> deletePost(@PathVariable String mdfileid) {
+        System.out.println(mdfileid);
+        try {
+            //First create the blogID
+            redisService.deleteBlog(mdfileid);
+            return ResponseEntity.ok().build();
+        } catch (Exception e) {
+            System.out.println(e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    @PostMapping("/api/mdfile/createblog/{userid}")
     public ResponseEntity<String> createBlog(@PathVariable String userid, @RequestBody Map<String, Object> request) {
         try {
             //First create the blogID
-            String blogID = redisService.createUserKey( userid, request);
-
+            String blogID = redisService.createUserKey(userid, request);
             return ResponseEntity.ok().body(blogID);
         } catch (Exception e) {
             System.out.println(e);
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
+    }
+
+    @RateLimiter(value = 5, timeWindow = 10000)
+    @GetMapping("/api/test")
+    public void test1(HttpServletRequest httpServletRequest) {
+        System.out.println(httpServletRequest.getRemoteAddr());
+        System.out.println(httpServletRequest.getHeader("X-Forwarded-For"));
+        System.out.println(httpServletRequest.getHeader("X-Real-IP"));
+        Enumeration<String> headerNames = httpServletRequest.getHeaderNames();
+
+        while (headerNames.hasMoreElements()) {
+            String headerName = headerNames.nextElement();
+            String headerValue = httpServletRequest.getHeader(headerName);
+            System.out.println(headerName + ": " + headerValue);
+        }
+    }
+
+    @PostMapping("/api/email")
+    public ResponseEntity<String> sendEmails(@RequestBody MailData mailData) {
+        //send welcome letter first
+        Response response = mailService.sentWelcomeEmail(mailData);
+        return String.valueOf(response.code()).startsWith("2")? ResponseEntity.ok().build() : ResponseEntity.status(500).build();
     }
 }

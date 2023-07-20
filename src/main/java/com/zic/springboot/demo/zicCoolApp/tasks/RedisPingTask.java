@@ -1,7 +1,10 @@
 package com.zic.springboot.demo.zicCoolApp.tasks;
 
+import com.zic.springboot.demo.zicCoolApp.aspect.RateLimiterAspect;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Primary;
@@ -16,7 +19,7 @@ import org.springframework.stereotype.Component;
 @Primary
 @Component
 public class RedisPingTask {
-
+    private static final Logger logger = LoggerFactory.getLogger(RedisPingTask.class);
     private final RedisTemplate<String, Object> redisTemplate;
 
     @Autowired
@@ -28,7 +31,7 @@ public class RedisPingTask {
     public void pingRedis() {
         redisTemplate.getConnectionFactory().getConnection().ping();
         //ToDo:Change this to logging
-        System.out.println("Ping sent to Redis");
+        logger.debug("Ping sent to Redis");
     }
 
     @PostConstruct

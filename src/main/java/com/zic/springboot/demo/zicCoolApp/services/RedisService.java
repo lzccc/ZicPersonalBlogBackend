@@ -63,11 +63,40 @@ public class RedisService {
     }
 
     public List<Object> getAllFromZSet(String key) {
-        return new ArrayList<>(redisTemplate.opsForZSet().range(key, 0, -1));
+        return new ArrayList<>(redisTemplate.opsForZSet().reverseRange(key, 0, -1));
     }
 
     public boolean hasKey(String key) {
         return redisTemplate.hasKey(key);
+    }
+
+    //Set a max number of retries
+    public void deleteBlog(String blogId) {
+        redisTemplate.execute(new SessionCallback<>() {
+            public Object execute(RedisOperations operations) throws DataAccessException {
+                Set<String> keys = redisTemplate.keys("*" + blogId+ "*");
+
+                operations.watch(keys);
+                operations.multi();
+                //delete blog meta
+                operations.delete(blogId);
+                //delete blog meta from zset
+
+                //ToDo: change this hardcoded user1
+                operations.opsForZSet().remove("blogSet:user1", blogId);
+                //delete content
+                operations.delete("blogContent:" + blogId);
+
+                //Return the list of replies for each executed command.
+                List<Object> results = operations.exec();
+
+                //ToDo: May need to change this to check the result of each command.
+                if (results == null) {
+                    deleteBlog(blogId);
+                }
+                return null;
+            }
+        });
     }
 
     public String createUserKey(String userId, Map<String, Object> request) {
@@ -82,7 +111,7 @@ public class RedisService {
                 String newKey = prefix + ":" + uuid;
                 request.put("blogId", newKey);
                 Date currDate = new Date();
-                SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd");
+                SimpleDateFormat formatter = new SimpleDateFormat("MMM d, yyyy");
                 // Format the date
                 String dateString = formatter.format(currDate);
                 request.put("date", dateString);
@@ -91,13 +120,67 @@ public class RedisService {
                 //Add this blogID to the blog zset of this user
                 operations.opsForZSet().add("blogSet:" + userId, newKey, currDate.getTime());
                 //create the actual content key for this blog
-                operations.opsForValue().set("blogContent:" + newKey, "zictestvalue");
+                String fileContent = (String)request.get("fileContent");
+                //Remove this key to save some extra space
+                request.remove("fileContent");
+                operations.opsForValue().set("blogContent:" + newKey, fileContent);
                 // If EXEC returns null, a watched key has been modified and operation should be retried
                 List<Object> results = operations.exec();
                 if (results == null) {
                     return createUserKey(userId, request);
                 }
                 return newKey;
+            }
+        });
+    }
+
+    public String createComment(String userId, Map<String, Object> request) {
+        String prefix = userId + ":comment";
+        return redisTemplate.execute(new SessionCallback<String>() {
+            public String execute(RedisOperations operations) throws DataAccessException {
+                operations.multi(); // Begin transaction
+                // Add new key
+                UUID uuid = UUID.randomUUID();
+                String newKey = prefix + ":" + uuid;
+                request.put("commentId", newKey);
+                Date currDate = new Date();
+                SimpleDateFormat formatter = new SimpleDateFormat("MMM d, yyyy HH:mm:ss");
+                // Format the date
+                String dateString = formatter.format(currDate);
+                request.put("date", dateString);
+                //Set comment metadata
+                operations.opsForHash().putAll(newKey, request);
+                //Add this blogID to the blog zset of this user
+                operations.opsForZSet().add("commentSet:" + userId, newKey, currDate.getTime());
+                // If EXEC returns null, a watched key has been modified and operation should be retried
+                List<Object> results = operations.exec();
+                if (results == null) {
+                    return createComment(userId, request);
+                }
+                return newKey;
+            }
+        });
+    }
+
+    public void deleteComment(String commentId) {
+        redisTemplate.execute(new SessionCallback<>() {
+            public Object execute(RedisOperations operations) throws DataAccessException {
+                operations.multi();
+                //delete blog meta
+                operations.delete(commentId);
+                //delete blog meta from zset
+
+                //ToDo: change this hardcoded user1
+                operations.opsForZSet().remove("commentSet:user1", commentId);
+
+                //Return the list of replies for each executed command.
+                List<Object> results = operations.exec();
+
+                //ToDo: May need to change this to check the result of each command.
+                if (results == null) {
+                    deleteComment(commentId);
+                }
+                return null;
             }
         });
     }

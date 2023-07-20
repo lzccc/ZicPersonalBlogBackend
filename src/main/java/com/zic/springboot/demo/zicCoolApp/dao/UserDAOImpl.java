@@ -9,7 +9,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 
-@Repository
+//Comment out this since we don't have a mysql yet
+//@Repository
 public class UserDAOImpl implements UserDAO {
     private EntityManager entityManager;
 

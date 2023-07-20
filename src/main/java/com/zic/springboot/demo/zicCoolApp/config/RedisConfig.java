@@ -25,7 +25,6 @@ public class RedisConfig {
     public RedisConnectionFactory redisConnectionFactory() {
         RedisStandaloneConfiguration config = new RedisStandaloneConfiguration(redisHost, redisPort);
         config.setPassword(redisPassword);
-
         return new LettuceConnectionFactory(config);
     }
 
@@ -33,16 +32,12 @@ public class RedisConfig {
     public RedisTemplate<String, Object> redisTemplate() {
         RedisTemplate<String, Object> template = new RedisTemplate<>();
         template.setConnectionFactory(redisConnectionFactory());
+        // Configure Redis key and value serializers if needed
         template.setHashValueSerializer(new StringRedisSerializer());
         template.setKeySerializer(new StringRedisSerializer());
         template.setValueSerializer(new StringRedisSerializer());
         template.setHashKeySerializer(new StringRedisSerializer());
         template.afterPropertiesSet();
-        // Configure Redis key and value serializers if needed
-        // template.setKeySerializer(new StringRedisSerializer());
-        // template.setValueSerializer(new GenericJackson2JsonRedisSerializer());
-        // ...
-
         return template;
     }
 }
