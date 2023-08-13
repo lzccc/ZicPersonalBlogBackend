@@ -2,13 +2,18 @@ package com.zic.springboot.demo.zicCoolApp.rest;
 
 import com.squareup.okhttp.Response;
 import com.zic.springboot.demo.zicCoolApp.aspect.RateLimiter;
+import com.zic.springboot.demo.zicCoolApp.services.LocalFileService;
 import com.zic.springboot.demo.zicCoolApp.services.MailService;
 import com.zic.springboot.demo.zicCoolApp.services.RedisService;
 import com.zic.springboot.demo.zicCoolApp.services.response.MailData;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.http.HttpStatus;
+import org.springframework.messaging.handler.annotation.Payload;
+import org.springframework.messaging.handler.annotation.SendTo;
+import org.springframework.messaging.simp.SimpMessagingTemplate;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.core.io.Resource;
 import org.springframework.http.HttpHeaders;
@@ -28,6 +33,16 @@ public class MyRestController {
 
     @Autowired
     private MailService mailService;
+
+    @Autowired
+    private LocalFileService localFileService;
+
+    private final SimpMessagingTemplate messagingTemplate;
+    @Autowired
+    public MyRestController(SimpMessagingTemplate messagingTemplate) {
+        this.messagingTemplate = messagingTemplate;
+    }
+
     @GetMapping("/")
     public String sayHello() {
         return "Hello World";
@@ -118,7 +133,9 @@ public class MyRestController {
     @GetMapping("/api/mdfile")
     public ResponseEntity<String> getMDFileContent(@RequestParam("mdfileid") String mdfileid) {
         try {
-            String mdContent = (String) redisService.getValue("blogContent:" +  mdfileid);
+            // Due to the memory limit, comment this out to get the content from disk
+            // String mdContent = (String) redisService.getValue("blogContent:" +  mdfileid);
+            String mdContent = localFileService.getContent("blogContent:" +  mdfileid);
             return ResponseEntity.ok().body(mdContent);
         } catch (Exception exc) {
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal Error!");
@@ -131,7 +148,11 @@ public class MyRestController {
     public ResponseEntity<Void> saveContent(@PathVariable String mdfileid, @RequestBody Map<String, String> request) {
         try {
             String content = request.get("content");
-            redisService.setValue("blogContent:" + mdfileid, content);
+            // Due to the memory limit, comment this out to use the disk space for all blog contents
+            // redisService.setValue("blogContent:" + mdfileid, content);
+
+            //Using disk space
+            localFileService.saveContent("blogContent:" + mdfileid, content);
             return ResponseEntity.ok().build();
         } catch (Exception e) {
             System.out.println(e);
@@ -185,4 +206,22 @@ public class MyRestController {
         Response response = mailService.sentWelcomeEmail(mailData);
         return String.valueOf(response.code()).startsWith("2")? ResponseEntity.ok().build() : ResponseEntity.status(500).build();
     }
+
+    // This method handles incoming messages from the frontend
+    // Demo for websocket
+    @PostMapping("/api/send-message")
+    public String handleMessage(String message) {
+        // Process the received message here (you can access the message content using message.getContent())
+        // You can also send a response back to the frontend if needed
+        System.out.println("zicreceived1!");
+        messagingTemplate.convertAndSend("/api/topic/messages", "test1");
+        messagingTemplate.convertAndSend("/api/topic/messages", "test2");
+        return "Response from server: " + "test";
+    }
+
+//    @SendTo("/api/topic/messages") // Send the response to the specified destination
+//    public String broadcastMessage(@Payload String textMessageDTO) {
+//        System.out.println("zicreceived2!");
+//        return textMessageDTO;
+//    }
 }

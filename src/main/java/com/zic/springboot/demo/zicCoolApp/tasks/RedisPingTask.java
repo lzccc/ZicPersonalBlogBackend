@@ -19,6 +19,7 @@ import org.springframework.stereotype.Component;
 @Primary
 @Component
 public class RedisPingTask {
+
     private static final Logger logger = LoggerFactory.getLogger(RedisPingTask.class);
     private final RedisTemplate<String, Object> redisTemplate;
 

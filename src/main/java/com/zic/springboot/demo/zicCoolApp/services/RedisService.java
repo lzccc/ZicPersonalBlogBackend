@@ -1,6 +1,7 @@
 package com.zic.springboot.demo.zicCoolApp.services;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.cglib.core.Local;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.core.*;
@@ -17,6 +18,9 @@ public class RedisService {
 
     @Autowired
     private RedisTemplate<String, Object> redisTemplate;
+
+    @Autowired
+    private LocalFileService localFileService;
 
     public void setValue(String key, Object value) {
         redisTemplate.opsForValue().set(key, value);
@@ -84,8 +88,9 @@ public class RedisService {
 
                 //ToDo: change this hardcoded user1
                 operations.opsForZSet().remove("blogSet:user1", blogId);
-                //delete content
+                //delete content, delete it from redis and from disk
                 operations.delete("blogContent:" + blogId);
+                localFileService.deleteContent("blogContent:" + blogId);
 
                 //Return the list of replies for each executed command.
                 List<Object> results = operations.exec();
@@ -112,18 +117,27 @@ public class RedisService {
                 request.put("blogId", newKey);
                 Date currDate = new Date();
                 SimpleDateFormat formatter = new SimpleDateFormat("MMM d, yyyy");
+
                 // Format the date
                 String dateString = formatter.format(currDate);
                 request.put("date", dateString);
+
                 //Set blog metadata
                 operations.opsForHash().putAll(newKey, request);
+
                 //Add this blogID to the blog zset of this user
                 operations.opsForZSet().add("blogSet:" + userId, newKey, currDate.getTime());
+
                 //create the actual content key for this blog
                 String fileContent = (String)request.get("fileContent");
+
                 //Remove this key to save some extra space
                 request.remove("fileContent");
-                operations.opsForValue().set("blogContent:" + newKey, fileContent);
+
+                //Comment this out to use disk for saving file content
+                // operations.opsForValue().set("blogContent:" + newKey, fileContent);
+                localFileService.saveContent("blogContent:" + newKey, fileContent);
+
                 // If EXEC returns null, a watched key has been modified and operation should be retried
                 List<Object> results = operations.exec();
                 if (results == null) {
