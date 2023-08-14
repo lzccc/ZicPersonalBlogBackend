@@ -24,7 +24,7 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         //The Customizer.withDefaults() here is needed since by default spring security will
-        //be reached before the controller, so the request will be block because of
+        //be reached before the controller, so the request will be blocked because of
         //CORS if we don't add this filter here. It tells Spring to use a bean with type
         //CorsConfigurationSource for the CORS configuration.
         http.cors(withDefaults()).securityMatcher("/api/**", "/actuator/**")

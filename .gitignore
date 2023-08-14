@@ -35,3 +35,7 @@ build/
 ### Blog Folder ###
 allBlogs/
 allBlogs
+
+### Configuration File ###
+resources/
+resources
