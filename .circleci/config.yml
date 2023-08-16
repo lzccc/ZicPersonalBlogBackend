@@ -30,9 +30,9 @@ jobs:
     steps:
       - run:
           name: Create /workspace directory
-          command: mkdir -p /workspace
+          command: sudo mkdir -p ~/workspace
       - attach_workspace:
-          at: /workspace
+          at: ~/workspace
 
       # Add SSH keys and set up known hosts
       - add_ssh_keys:
