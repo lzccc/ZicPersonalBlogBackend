@@ -5,22 +5,49 @@ version: 2.1
 # Define a job to be invoked later in a workflow.
 # See: https://circleci.com/docs/configuration-reference/#jobs
 jobs:
-  say-hello:
+  build:
     # Specify the execution environment. You can specify an image from Docker Hub or use one of our convenience images from CircleCI's Developer Hub.
     # See: https://circleci.com/docs/configuration-reference/#executor-job
     docker:
-      - image: cimg/base:stable
+      - image: cimg/openjdk:20.0.1
     # Add steps to the job
     # See: https://circleci.com/docs/configuration-reference/#steps
+    working_directory: ~/repo
     steps:
       - checkout
+      - run: mvn clean install
+      - persist_to_workspace:
+          root: .
+          paths:
+            - target/*.jar
+
+  deploy:
+    machine:
+      enabled: true
+    docker:
+      - image: cimg/base:stable
+    working_directory: ~/repo
+
+    steps:
+      - attach_workspace:
+          at: /workspace
+
+      # Add SSH keys and set up known hosts
+      - add_ssh_keys:
+          fingerprints:
+            - "53:b9:2f:10:c4:fd:d9:c3:6a:d4:1f:f8:e1:82:51:9e"
+
       - run:
-          name: "Say hello"
-          command: "echo Hello, World!"
+          name: Deploy JAR to cloud host
+          command: |
+            scp /workspace/target/*.jar opc@192.9.251.238:/home/opc/zicBlogBackend
 
 # Orchestrate jobs using workflows
 # See: https://circleci.com/docs/configuration-reference/#workflows
 workflows:
   say-hello-workflow:
     jobs:
-      - say-hello
+      - build
+      - deploy:
+        requires:
+          - build
