@@ -51,7 +51,7 @@ jobs:
       - run:
           name: Deploy JAR to cloud host
           command: |
-            scp ~/tmprepo/target/*.jar opc@192.9.251.238:/home/opc/zicBlogBackend
+            scp -o StrictHostKeyChecking=no ~/tmprepo/target/*.jar opc@192.9.251.238:/home/opc/zicBlogBackend
 
 # Orchestrate jobs using workflows
 # See: https://circleci.com/docs/configuration-reference/#workflows
