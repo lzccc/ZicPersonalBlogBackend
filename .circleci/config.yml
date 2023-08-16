@@ -29,7 +29,7 @@ jobs:
           key: v2-dependencies-{{ checksum "pom.xml" }}
 
       - persist_to_workspace:
-          root: workspace
+          root: .
           paths:
             - target/*.jar
 
@@ -41,7 +41,7 @@ jobs:
 
     steps:
       - attach_workspace:
-          at: ~/tmprepo/workspace
+          at: ~/tmprepo
 
       # Add SSH keys and set up known hosts
       - add_ssh_keys:
@@ -51,7 +51,7 @@ jobs:
       - run:
           name: Deploy JAR to cloud host
           command: |
-            scp ~/tmprepo/workspace/target/*.jar opc@192.9.251.238:/home/opc/zicBlogBackend
+            scp ~/tmprepo/target/*.jar opc@192.9.251.238:/home/opc/zicBlogBackend
 
 # Orchestrate jobs using workflows
 # See: https://circleci.com/docs/configuration-reference/#workflows
