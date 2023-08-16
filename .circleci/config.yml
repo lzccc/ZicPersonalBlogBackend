@@ -22,8 +22,8 @@ jobs:
             - target/*.jar
 
   deploy:
-    machine:
-      enabled: true
+    docker:
+      - image: cimg/openjdk:20.0.1
 
     working_directory: ~/repo
 
