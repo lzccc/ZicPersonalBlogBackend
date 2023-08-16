@@ -44,9 +44,10 @@ jobs:
 # Orchestrate jobs using workflows
 # See: https://circleci.com/docs/configuration-reference/#workflows
 workflows:
-  say-hello-workflow:
+  version: 2.1
+  build-and-deploy:
     jobs:
       - build
       - deploy:
-        requires:
-          - build
+          requires:
+            - build
