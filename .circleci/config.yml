@@ -28,6 +28,9 @@ jobs:
     working_directory: ~/repo
 
     steps:
+      - run:
+          name: Create /workspace directory
+          command: mkdir -p /workspace
       - attach_workspace:
           at: /workspace
 
