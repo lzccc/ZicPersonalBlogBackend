@@ -12,7 +12,7 @@ jobs:
       - image: cimg/openjdk:20.0.1
     # Add steps to the job
     # See: https://circleci.com/docs/configuration-reference/#steps
-    working_directory: /tmprepo
+    working_directory: ~/tmprepo
     steps:
       - checkout
       - restore_cache:
@@ -37,11 +37,11 @@ jobs:
     docker:
       - image: cimg/openjdk:20.0.1
 
-    working_directory: /tmprepo
+    working_directory: ~/tmprepo
 
     steps:
       - attach_workspace:
-          at: /tmprepo/workspace
+          at: ~/tmprepo/workspace
 
       # Add SSH keys and set up known hosts
       - add_ssh_keys:
@@ -51,7 +51,7 @@ jobs:
       - run:
           name: Deploy JAR to cloud host
           command: |
-            scp /tmprepo/workspace/target/*.jar opc@192.9.251.238:/home/opc/zicBlogBackend
+            scp ~/tmprepo/workspace/target/*.jar opc@192.9.251.238:/home/opc/zicBlogBackend
 
 # Orchestrate jobs using workflows
 # See: https://circleci.com/docs/configuration-reference/#workflows
