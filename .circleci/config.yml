@@ -24,8 +24,7 @@ jobs:
   deploy:
     machine:
       enabled: true
-    docker:
-      - image: cimg/base:stable
+
     working_directory: ~/repo
 
     steps:
